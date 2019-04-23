@@ -12,11 +12,13 @@
 #include "result.h"
 #include "ssc.h"
 
-const char *argp_program_version = "0.1.0";
+const char *argp_program_version = "0.2.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
 static struct argp_option options[] = {
+    {0, 0, 0, 0, "Regular"},
+    {"json", 'j', 0, 0, "Output as JSON"},
     {0, 0, 0, 0, "Seccomp Strategy"},
     {"c-cpp", 'c', 0},
     {"regular", 'r', 0},
@@ -29,9 +31,10 @@ static struct argp_option options[] = {
 struct arguments {
     int time_limit;
     int memory_limit;
+    int json;
+    char strategy;
     char *bin;
     char **args;
-    char strategy;
 };
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -48,6 +51,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             break;
         case 'c':
             arguments->strategy = 'c';
+            break;
+        case 'j':
+            arguments->json = 1;
             break;
         case ARGP_KEY_NO_ARGS:
             argp_usage(state);
@@ -70,6 +76,7 @@ int main(int argc, char *argv[]) {
     arguments.strategy = 'c';
     arguments.memory_limit = 0;
     arguments.time_limit = 0;
+    arguments.json = 0;
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
@@ -110,8 +117,6 @@ int main(int argc, char *argv[]) {
                 break;
         }
 
-
-
         char* envp[] = { 0 };
 
         execve(arguments.bin, arguments.args, envp);
@@ -123,7 +128,11 @@ int main(int argc, char *argv[]) {
         }
         struct ssc_result result;
         ssc_result_parse_rusage(&result, &rusage);
-        printf("Status: %d, Time: %ldms, Memory: %ldKB\n", status, result.cpu_time, result.memory);
+        if (arguments.json) {
+            printf(R"({"status":%d,"cpuTime":%ld,"memory":%ld})" "\n", status, result.cpu_time, result.memory);
+        } else {
+            printf("Status: %d, Time: %ldms, Memory: %ldKB\n", status, result.cpu_time, result.memory);
+        }
     }
 
     return 0;
