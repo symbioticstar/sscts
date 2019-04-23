@@ -6,6 +6,7 @@ enum ssc_error {
     ERROR,
     SCE_LDSCMP,
     SCE_FORK,
+    SCE_SETRLIMIT,
 };
 
 #endif // SSC_H

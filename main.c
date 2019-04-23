@@ -17,10 +17,12 @@ const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
 static struct argp_option options[] = {
-    {"time-limit", 't', "TIME_LIMIT"},
-    {"memory-limit", 'm', "MEMORY_LIMIT"},
+    {0, 0, 0, 0, "Seccomp Strategy"},
     {"c-cpp", 'c', 0},
     {"regular", 'r', 0},
+    {0, 0, 0, 0, "Resourse Limit"},
+    {"time-limit", 't', "TIME_LIMIT", 0, "TimeLimit, in second"},
+    {"memory-limit", 'm', "MEMORY_LIMIT", 0, "MemoryLimit, in MiB"},
     {0},
 };
 
@@ -66,6 +68,8 @@ int main(int argc, char *argv[]) {
     /* Init */
     struct arguments arguments;
     arguments.strategy = 'c';
+    arguments.memory_limit = 0;
+    arguments.time_limit = 0;
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
@@ -73,6 +77,26 @@ int main(int argc, char *argv[]) {
     if ((pid = fork()) < 0) {
         return SCE_FORK;
     } else if (pid == 0) {
+
+        /* Set Time Limitation */
+        if (arguments.time_limit) {
+            struct rlimit max_cpu_time;
+            max_cpu_time.rlim_cur = max_cpu_time.rlim_max = (rlim_t)(arguments.time_limit + 1);
+            if (setrlimit(RLIMIT_CPU, &max_cpu_time) != 0) {
+                return SCE_SETRLIMIT;
+            }
+        }
+
+        /* Set Memory Limitation */
+        if (arguments.memory_limit) {
+            struct rlimit max_memory;
+            max_memory.rlim_cur = max_memory.rlim_max = (rlim_t)(arguments.memory_limit) * 2 * 1024 * 1024;
+            if (setrlimit(RLIMIT_AS, &max_memory) != 0) {
+                return SCE_SETRLIMIT;
+            }
+        }
+
+        /* Load Seccomp */
         switch (arguments.strategy) {
             case 'r':
                 if (ssc_seccomp_load_regular(arguments.bin) != 0) {
@@ -85,6 +109,9 @@ int main(int argc, char *argv[]) {
                 }
                 break;
         }
+
+
+
         char* envp[] = { 0 };
 
         execve(arguments.bin, arguments.args, envp);
