@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {
         result.status = status;
         ssc_result_parse_rusage(&result, &rusage);
         if (arguments.json) {
-            printf("{\"exitCode\":%d,status\":%d,\"cpuTime\":%ld,"
+            printf("{\"exitCode\":%d,\"status\":%d,\"cpuTime\":%ld,"
                    "\"realTime\":%ld,\"memory\":%ld}\n", result.exit_code, result.status, result.cpu_time,
                    result.real_time, result.memory);
         } else {
