@@ -228,7 +228,7 @@ int main(int argc, char *argv[]) {
                 break;
         }
         char path[1000];
-        sprintf(path, "PATH=%s", getenv("path"));
+        sprintf(path, "PATH=%s", getenv("PATH"));
         char* envp[] = {path, 0 };
 
         execve(arguments.bin, arguments.args, envp);
