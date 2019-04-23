@@ -227,8 +227,9 @@ int main(int argc, char *argv[]) {
                 }
                 break;
         }
-
-        char* envp[] = { "PATH=/home/sirius/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:.", 0 };
+        char path[1000];
+        sprintf(path, "PATH=%s", getenv("path"));
+        char* envp[] = {path, 0 };
 
         execve(arguments.bin, arguments.args, envp);
     } else {
