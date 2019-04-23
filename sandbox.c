@@ -34,7 +34,7 @@ const int rules_regular[] = {
     INT_MAX,
 };
 
-int ssx_seccomp_init(scmp_filter_ctx ctx, const int *rules, int whitelist, char *path) {
+int ssc_seccomp_init(scmp_filter_ctx ctx, const int *rules, int whitelist, char *path) {
 
     /* Create Filter */
     int action;
@@ -45,7 +45,9 @@ int ssx_seccomp_init(scmp_filter_ctx ctx, const int *rules, int whitelist, char 
     }
 
     /* Add rules */
-    ssx_seccomp_add(ctx, rules, action);
+    if(ssc_seccomp_add(ctx, rules, action)) {
+        return SCE_LDSCMP;
+    }
 
     /* Load Filter */
     if (seccomp_load(ctx) != 0) {
@@ -55,16 +57,17 @@ int ssx_seccomp_init(scmp_filter_ctx ctx, const int *rules, int whitelist, char 
     return 0;
 }
 
-int ssx_seccomp_add(scmp_filter_ctx ctx, const int* rules, int action) {
+int ssc_seccomp_add(scmp_filter_ctx ctx, const int* rules, int action) {
     for (int i = 0; rules[i] != INT_MAX; ++i) {
         if (seccomp_rule_add(ctx, action, rules[i], 0) != 0) {
             seccomp_release(ctx);
             return SCE_LDSCMP;
         };
     }
+    return 0;
 }
 
-int ssx_seccomp_load_c_cpp(char *path) {
+int ssc_seccomp_load_c_cpp(char *path) {
     scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_KILL);
     if (!ctx) return SCE_LDSCMP;
 
@@ -81,7 +84,7 @@ int ssx_seccomp_load_c_cpp(char *path) {
     }
 
     /* Load */
-    if (ssx_seccomp_init(ctx, rules_c_cpp, 1, path)) {
+    if (ssc_seccomp_init(ctx, rules_c_cpp, 1, path)) {
         return SCE_LDSCMP;
     }
 
@@ -89,7 +92,7 @@ int ssx_seccomp_load_c_cpp(char *path) {
     return 0;
 }
 
-int ssx_seccomp_load_regular(char *path) {
+int ssc_seccomp_load_regular(char *path) {
     scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_ALLOW);
     if (!ctx) return SCE_LDSCMP;
 
@@ -105,7 +108,7 @@ int ssx_seccomp_load_regular(char *path) {
     }
 
     /* Load */
-    if (ssx_seccomp_init(ctx, rules_regular, 0, path)) {
+    if (ssc_seccomp_init(ctx, rules_regular, 0, path)) {
         return SCE_LDSCMP;
     }
 
