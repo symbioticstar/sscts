@@ -14,7 +14,7 @@
 #include "result.h"
 #include "ssc.h"
 
-const char *argp_program_version = "0.3.0";
+const char *argp_program_version = "0.4.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
@@ -129,7 +129,6 @@ int main(int argc, char *argv[]) {
     if ((pid = fork()) < 0) {
         return SCE_FORK;
     } else if (pid == 0) {
-
         /* Redirection */
         FILE *input_file = NULL, *output_file = NULL, *error_file = NULL;
         if (arguments.stdin) {
@@ -229,7 +228,7 @@ int main(int argc, char *argv[]) {
                 break;
         }
 
-        char* envp[] = { 0 };
+        char* envp[] = { "PATH=/home/sirius/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:.", 0 };
 
         execve(arguments.bin, arguments.args, envp);
     } else {

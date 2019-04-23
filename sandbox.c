@@ -29,7 +29,7 @@ const int rules_regular[] = {
     SCMP_SYS(socket),
     SCMP_SYS(clone),
     SCMP_SYS(fork),
-    SCMP_SYS(vfork),
+    // SCMP_SYS(vfork),
     SCMP_SYS(kill),
     INT_MAX,
 };
