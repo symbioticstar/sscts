@@ -1,7 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <argp.h>
+#include <unistd.h>
+
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
 #include "sandbox.h"
+#include "ssc.h"
 
 const char *argp_program_version = "0.1.0";
 const char *argp_program_bug_address = "<i@sst.st>";
@@ -48,9 +56,24 @@ int main(int argc, char *argv[]) {
     struct arguments arguments;
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
-    // // extern const int rules_c_cpp[];
-    // for (int i = 0; rules_c_cpp[i] != INT_MAX; ++i) {
-    //     printf("%d\n", rules_c_cpp[i]);
-    // }
+    pid_t pid;
+    if ((pid = fork()) < 0) {
+        return SCE_FORK;
+    } else if (pid == 0) {
+        if (ssx_seccomp_load_regular("./t") != 0) {
+            return SCE_LDSCMP;
+        }
+        char* argv[] = { "./t", 0 };
+        char* envp[] = { 0 };
+        execve("./t", argv, envp);
+    } else {
+        int status;
+        struct rusage resource_usage;
+        if (wait4(pid, &status, WSTOPPED, &resource_usage) == -1) {
+            kill(pid, SIGKILL);
+        }
+        printf("[%d]\n", status);
+    }
+
     return 0;
 }

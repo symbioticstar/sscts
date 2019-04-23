@@ -3,6 +3,7 @@
 #include <linux/seccomp.h>
 #include <limits.h>
 #include <fcntl.h>
+#include "sandbox.h"
 #include "ssc.h"
 
 
@@ -29,28 +30,44 @@ const int rules_regular[] = {
     SCMP_SYS(clone),
     SCMP_SYS(fork),
     SCMP_SYS(vfork),
-    SCMP_SYS(kill)
+    SCMP_SYS(kill),
+    INT_MAX,
 };
 
-int ssx_seccomp_init(const int *rules, int whitelist, char *path) {
+int ssx_seccomp_init(scmp_filter_ctx ctx, const int *rules, int whitelist, char *path) {
+
     /* Create Filter */
-    scmp_filter_ctx ctx = NULL;
     int action;
     if (whitelist) {
-        ctx = seccomp_init(SCMP_ACT_KILL);
         action = SCMP_ACT_ALLOW;
     } else {
-        ctx = seccomp_init(SCMP_ACT_ALLOW);
         action = SCMP_ACT_KILL;
     }
-    if (ctx == NULL) return SCE_LDSCMP;
+
     /* Add rules */
+    ssx_seccomp_add(ctx, rules, action);
+
+    /* Load Filter */
+    if (seccomp_load(ctx) != 0) {
+        return SCE_LDSCMP;
+    }
+
+    return 0;
+}
+
+int ssx_seccomp_add(scmp_filter_ctx ctx, const int* rules, int action) {
     for (int i = 0; rules[i] != INT_MAX; ++i) {
         if (seccomp_rule_add(ctx, action, rules[i], 0) != 0) {
             seccomp_release(ctx);
             return SCE_LDSCMP;
         };
     }
+}
+
+int ssx_seccomp_load_c_cpp(char *path) {
+    scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_KILL);
+    if (!ctx) return SCE_LDSCMP;
+
     /* Add Extra Rules*/
     if (path) {
         if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(execve), 1, SCMP_A0(SCMP_CMP_EQ, (scmp_datum_t)(path))) != 0) {
@@ -58,23 +75,41 @@ int ssx_seccomp_init(const int *rules, int whitelist, char *path) {
             return SCE_LDSCMP;
         }
     }
-    if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 1, SCMP_A1(SCMP_CMP_MASKED_EQ, O_WRONLY | O_RDWR)) != 0) {
+    if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(open), 1, SCMP_A1(SCMP_CMP_MASKED_EQ, O_WRONLY | O_RDWR, 0)) != 0) {
         seccomp_release(ctx);
         return SCE_LDSCMP;
     }
-    /* Load Filter */
-    if (seccomp_load(ctx) != 0) {
-        seccomp_release(ctx);
+
+    /* Load */
+    if (ssx_seccomp_init(ctx, rules_c_cpp, 1, path)) {
         return SCE_LDSCMP;
     }
+
     seccomp_release(ctx);
     return 0;
 }
 
-inline int ssx_seccomp_load_c_cpp(char *path) {
-    return ssx_seccomp_init(rules_c_cpp, 1, path);
+int ssx_seccomp_load_regular(char *path) {
+    scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_ALLOW);
+    if (!ctx) return SCE_LDSCMP;
+
+    /* Add Extra Rules*/
+    if (seccomp_rule_add(ctx, SCMP_ACT_KILL, SCMP_SYS(execve), 1, SCMP_A0(SCMP_CMP_NE, (scmp_datum_t)(path))) != 0) {
+        return SCE_LDSCMP;
+    }
+    if (seccomp_rule_add(ctx, SCMP_ACT_KILL, SCMP_SYS(open), 1, SCMP_A1(SCMP_CMP_MASKED_EQ, O_WRONLY, O_WRONLY)) != 0) {
+        return SCE_LDSCMP;
+    }
+    if (seccomp_rule_add(ctx, SCMP_ACT_KILL, SCMP_SYS(open), 1, SCMP_A1(SCMP_CMP_MASKED_EQ, O_RDWR, O_RDWR)) != 0) {
+        return SCE_LDSCMP;
+    }
+
+    /* Load */
+    if (ssx_seccomp_init(ctx, rules_regular, 0, path)) {
+        return SCE_LDSCMP;
+    }
+
+    seccomp_release(ctx);
+    return 0;
 }
 
-inline int ssx_seccomp_load_regular(char *path) {
-    return ssx_seccomp_init(rules_regular, 0, path);
-}
