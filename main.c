@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <argp.h>
 #include <unistd.h>
+#include <grp.h>
 #include <string.h>
 
 #include <sys/time.h>
@@ -13,7 +14,7 @@
 #include "result.h"
 #include "ssc.h"
 
-const char *argp_program_version = "0.2.0";
+const char *argp_program_version = "0.3.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
@@ -25,19 +26,26 @@ static struct argp_option options[] = {
     {"regular", 'r', 0},
     {"no-seccomp", 'n', 0, 0, "Execute without seccomp"},
     {0, 0, 0, 0, "Resourse Limit"},
-    {"time-limit", 't', "TIME_LIMIT", 0, "TimeLimit, in second"},
-    {"memory-limit", 'm', "MEMORY_LIMIT", 0, "MemoryLimit, in MiB"},
+    {"time-limit", 't', "SECOND", 0, "TimeLimit, in second"},
+    {"memory-limit", 'm', "MiB", 0, "MemoryLimit, in MiB"},
+    {"output-limit", 'a', "MiB", 0, "OutputLimit, in MiB"},
     {0, 0, 0, 0, "File Redirect"},
     {"stdin", 'i', "FILE" },
     {"stdout", 'o', "FILE" },
     {"stderr", 'e', "FILE" },
+    {0, 0, 0, 0, "Permission, must call with sudo"},
+    {"gid", 'g', "GID"},
+    {"uid", 'u', "UID"},
     {0},
 };
 
 struct arguments {
     int time_limit;
     int memory_limit;
+    int output_limit;
     int json;
+    int uid;
+    int gid;
     char strategy;
     char *bin;
     char *stdin;
@@ -54,6 +62,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             break;
         case 'm':
             arguments->memory_limit = atoi(arg);
+            break;
+        case 'u':
+            arguments->uid = atoi(arg);
+            break;
+        case 'g':
+            arguments->gid = atoi(arg);
             break;
         case 'r':
             arguments->strategy = 'r';
@@ -101,8 +115,15 @@ int main(int argc, char *argv[]) {
     arguments.stdin = 0;
     arguments.stdout = 0;
     arguments.stderr = 0;
+    arguments.gid = -1;
+    arguments.uid = -1;
+    arguments.output_limit = 0;
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
+
+    /* Calculate real time consume */
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
 
     pid_t pid;
     if ((pid = fork()) < 0) {
@@ -143,10 +164,19 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        /* Set Output Limitation */
+        if (arguments.output_limit) {
+            struct rlimit output_limit;
+            output_limit.rlim_cur = output_limit.rlim_max = (rlim_t)arguments.output_limit * 1024 * 1024;
+            if (setrlimit(RLIMIT_FSIZE, &output_limit) != 0) {
+                return SCE_SETRLIMIT;
+            }
+        }
+
         /* Set Time Limitation */
         if (arguments.time_limit) {
             struct rlimit max_time;
-            max_time.rlim_cur = max_time.rlim_max = (rlim_t)(arguments.time_limit + 1);
+            max_time.rlim_cur = max_time.rlim_max = (rlim_t)arguments.time_limit + 1;
             if (setrlimit(RLIMIT_CPU, &max_time) != 0) {
                 return SCE_SETRLIMIT;
             }
@@ -158,9 +188,30 @@ int main(int argc, char *argv[]) {
         /* Set Memory Limitation */
         if (arguments.memory_limit) {
             struct rlimit max_memory;
-            max_memory.rlim_cur = max_memory.rlim_max = (rlim_t)(arguments.memory_limit) * 2 * 1024 * 1024;
+            max_memory.rlim_cur = max_memory.rlim_max = (rlim_t)arguments.memory_limit * 2 * 1024 * 1024;
             if (setrlimit(RLIMIT_AS, &max_memory) != 0) {
                 return SCE_SETRLIMIT;
+            }
+        }
+
+        /* Set gid. Root required.*/
+        gid_t group_list[] = {arguments.gid };
+        if (arguments.gid  != -1) {
+            if (geteuid() != 0) {
+                return SCE_RQROOT;
+            }
+            if (setgid(arguments.gid) == -1 || setgroups(sizeof(group_list) / sizeof(gid_t), group_list) == -1) {
+                return SCE_SGID;
+            }
+        }
+
+        /* Set uid. Root required. */
+        if (arguments.uid  != -1) {
+            if (geteuid() != 0) {
+                return SCE_RQROOT;
+            }
+            if (setuid(arguments.uid) == -1) {
+                return SCE_SUID;
             }
         }
 
@@ -186,13 +237,35 @@ int main(int argc, char *argv[]) {
         struct rusage rusage;
         if (wait4(pid, &status, WSTOPPED, &rusage) == -1) {
             kill(pid, SIGKILL);
+            return SCE_WAIT;
         }
+
         struct ssc_result result;
+
+        gettimeofday(&end, NULL);
+        result.real_time = (uint64_t)(end.tv_sec * 1000 + end.tv_usec / 1000 - start.tv_sec * 1000 - start.tv_usec / 1000);
+
+
+        result.exit_code = WEXITSTATUS(status);
+        result.status = status;
         ssc_result_parse_rusage(&result, &rusage);
         if (arguments.json) {
-            printf(R"({"status":%d,"cpuTime":%ld,"memory":%ld})" "\n", status, result.cpu_time, result.memory);
+            printf("{\"exitCode\":%d,status\":%d,\"cpuTime\":%ld,"
+                   "\"realTime\":%ld,\"memory\":%ld}\n", result.exit_code, result.status, result.cpu_time,
+                   result.real_time, result.memory);
         } else {
-            printf("Status: %d, Time: %ldms, Memory: %ldKB\n", status, result.cpu_time, result.memory);
+            printf(
+                "----------------"
+                "\nExitCode: %d\n"
+                "Status:   %d\n"
+                "CPUTime:  %ldms\n"
+                "RealTime: %ldms\n"
+                "Memory:   %ldKB\n"
+                ANSI_COLOR_RED
+                "\nCopyright SS, 2019\n"
+                ANSI_COLOR_RESET,
+                result.exit_code, result.status,
+                result.cpu_time, result.real_time, result.memory);
         }
     }
 
