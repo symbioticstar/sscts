@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <argp.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -22,9 +23,14 @@ static struct argp_option options[] = {
     {0, 0, 0, 0, "Seccomp Strategy"},
     {"c-cpp", 'c', 0},
     {"regular", 'r', 0},
+    {"no-seccomp", 'n', 0, 0, "Execute without seccomp"},
     {0, 0, 0, 0, "Resourse Limit"},
     {"time-limit", 't', "TIME_LIMIT", 0, "TimeLimit, in second"},
     {"memory-limit", 'm', "MEMORY_LIMIT", 0, "MemoryLimit, in MiB"},
+    {0, 0, 0, 0, "File Redirect"},
+    {"stdin", 'i', "FILE" },
+    {"stdout", 'o', "FILE" },
+    {"stderr", 'e', "FILE" },
     {0},
 };
 
@@ -34,6 +40,9 @@ struct arguments {
     int json;
     char strategy;
     char *bin;
+    char *stdin;
+    char *stdout;
+    char *stderr;
     char **args;
 };
 
@@ -52,8 +61,20 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'c':
             arguments->strategy = 'c';
             break;
+        case 'n':
+            arguments->strategy = 0;
+            break;
         case 'j':
             arguments->json = 1;
+            break;
+        case 'i':
+            arguments->stdin = arg;
+            break;
+        case 'o':
+            arguments->stdout = arg;
+            break;
+        case 'e':
+            arguments->stderr = arg;
             break;
         case ARGP_KEY_NO_ARGS:
             argp_usage(state);
@@ -71,12 +92,15 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 static struct argp argp = {options, parse_opt, args_doc, doc };
 
 int main(int argc, char *argv[]) {
-    /* Init */
+    /* Default */
     struct arguments arguments;
     arguments.strategy = 'c';
     arguments.memory_limit = 0;
     arguments.time_limit = 0;
     arguments.json = 0;
+    arguments.stdin = 0;
+    arguments.stdout = 0;
+    arguments.stderr = 0;
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
@@ -85,11 +109,48 @@ int main(int argc, char *argv[]) {
         return SCE_FORK;
     } else if (pid == 0) {
 
+        /* Redirection */
+        FILE *input_file = NULL, *output_file = NULL, *error_file = NULL;
+        if (arguments.stdin) {
+            input_file = fopen(arguments.stdin, "r");
+            if (input_file == NULL) {
+                return SCE_NOENT;
+            }
+            if (dup2(fileno(input_file), fileno(stdin)) == -1) {
+                return SCE_DUP2;
+            }
+        }
+        if (arguments.stdout) {
+            output_file = fopen(arguments.stdout, "w");
+            if (output_file == NULL) {
+                return SCE_PERM;
+            }
+            if (dup2(fileno(output_file), fileno(stdout)) == -1) {
+                return SCE_DUP2;
+            }
+        }
+        if (arguments.stderr) {
+            if (output_file && strcmp(arguments.stdout, arguments.stderr) == 0) {
+                error_file = output_file;
+            } else {
+                error_file = fopen(arguments.stderr, "w");
+                if (error_file == NULL) {
+                    return SCE_PERM;
+                }
+            }
+            if (dup2(fileno(error_file), fileno(stderr)) == -1) {
+                return SCE_DUP2;
+            }
+        }
+
         /* Set Time Limitation */
         if (arguments.time_limit) {
-            struct rlimit max_cpu_time;
-            max_cpu_time.rlim_cur = max_cpu_time.rlim_max = (rlim_t)(arguments.time_limit + 1);
-            if (setrlimit(RLIMIT_CPU, &max_cpu_time) != 0) {
+            struct rlimit max_time;
+            max_time.rlim_cur = max_time.rlim_max = (rlim_t)(arguments.time_limit + 1);
+            if (setrlimit(RLIMIT_CPU, &max_time) != 0) {
+                return SCE_SETRLIMIT;
+            }
+            if (setrlimit(RLIMIT_RTTIME, &max_time) != 0) {
                 return SCE_SETRLIMIT;
             }
         }
