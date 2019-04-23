@@ -14,7 +14,7 @@
 #include "result.h"
 #include "ssc.h"
 
-const char *argp_program_version = "0.3.0";
+const char *argp_program_version = "0.4.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
