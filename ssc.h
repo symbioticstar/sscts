@@ -14,6 +14,14 @@ enum ssc_error {
     SCE_SGID,
     SCE_SUID,
     SCE_RQROOT,
+    SCE_RQOF,
+};
+
+enum ssc_judge_result {
+    SCR_AC,
+    SCR_WA,
+    SCR_PE,
+    SCR_SE,
 };
 
 #define ANSI_COLOR_RED     "\x1b[31m"

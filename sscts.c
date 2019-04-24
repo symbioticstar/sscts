@@ -14,7 +14,9 @@
 #include "result.h"
 #include "ssc.h"
 
-const char *argp_program_version = "0.4.0";
+#include "comparer.h"
+
+const char *argp_program_version = "0.5.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
@@ -22,7 +24,7 @@ static struct argp_option options[] = {
     {0, 0, 0, 0, "Regular"},
     {"json", 'j', 0, 0, "Output as JSON"},
     {0, 0, 0, 0, "Seccomp Strategy"},
-    {"c-cpp", 'c', 0},
+    {"c-cpp", 'c', 0, 0, "(Default)"},
     {"regular", 'r', 0},
     {"no-seccomp", 'n', 0, 0, "Execute without seccomp"},
     {0, 0, 0, 0, "Resourse Limit"},
@@ -33,10 +35,13 @@ static struct argp_option options[] = {
     {"stdin", 'i', "FILE" },
     {"stdout", 'o', "FILE" },
     {"stderr", 'e', "FILE" },
+    {0, 0, 0, 0, "Comparation"},
+    {"stdans", 's', "FILE", 0, "Standard answer"},
+    {"no-check-tailling-space", 'w', 0, 0, "OI Style"},
     {0, 0, 0, 0, "Permission, must call with sudo"},
     {"gid", 'g', "GID"},
     {"uid", 'u', "UID"},
-    {0},
+    {0}
 };
 
 struct arguments {
@@ -47,10 +52,12 @@ struct arguments {
     int uid;
     int gid;
     char strategy;
+    int ncts;
     char *bin;
     char *stdin;
     char *stdout;
     char *stderr;
+    char *stdans;
     char **args;
 };
 
@@ -90,6 +97,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'e':
             arguments->stderr = arg;
             break;
+        case 's':
+            arguments->stdans = arg;
+            break;
+        case 'w':
+            arguments->ncts = 1;
+            break;
         case ARGP_KEY_NO_ARGS:
             argp_usage(state);
         case ARGP_KEY_ARG:
@@ -118,6 +131,8 @@ int main(int argc, char *argv[]) {
     arguments.gid = -1;
     arguments.uid = -1;
     arguments.output_limit = 0;
+    arguments.ncts = 0;
+    arguments.stdans = 0;
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
@@ -249,6 +264,23 @@ int main(int argc, char *argv[]) {
         result.exit_code = WEXITSTATUS(status);
         result.status = status;
         ssc_result_parse_rusage(&result, &rusage);
+
+
+        if (arguments.stdans) {
+            if (!arguments.stdout) {
+                return SCE_RQOF;
+            }
+            FILE *output_file = fopen(arguments.stdout, "r"), *answer_file = fopen(arguments.stdans, "r") ;
+            if (!output_file || !answer_file) {
+                return SCE_NOENT;
+            }
+            int judge_result;
+            judge_result = result_cmp(answer_file, output_file, arguments.ncts);
+            printf("Judge Result: %d\n", judge_result);
+            fclose(output_file);
+            fclose(answer_file);
+        }
+
         if (arguments.json) {
             printf("{\"exitCode\":%d,\"status\":%d,\"cpuTime\":%ld,"
                    "\"realTime\":%ld,\"memory\":%ld}\n", result.exit_code, result.status, result.cpu_time,

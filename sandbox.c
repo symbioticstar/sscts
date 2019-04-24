@@ -21,6 +21,8 @@ const int rules_c_cpp[] = {
     SCMP_SYS(execve),
     SCMP_SYS(write),
     SCMP_SYS(lseek),
+    SCMP_SYS(uname),
+    SCMP_SYS(readlink),
     SCMP_SYS(exit_group),
     INT_MAX,
 };
