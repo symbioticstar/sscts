@@ -265,6 +265,7 @@ int main(int argc, char *argv[]) {
         result.status = status;
         ssc_result_parse_rusage(&result, &rusage);
 
+        int judge_result = -1;
 
         if (arguments.stdans) {
             if (!arguments.stdout) {
@@ -274,17 +275,15 @@ int main(int argc, char *argv[]) {
             if (!output_file || !answer_file) {
                 return SCE_NOENT;
             }
-            int judge_result;
             judge_result = result_cmp(answer_file, output_file, arguments.ncts);
-            printf("Judge Result: %d\n", judge_result);
             fclose(output_file);
             fclose(answer_file);
         }
 
         if (arguments.json) {
             printf("{\"exitCode\":%d,\"status\":%d,\"cpuTime\":%ld,"
-                   "\"realTime\":%ld,\"memory\":%ld}\n", result.exit_code, result.status, result.cpu_time,
-                   result.real_time, result.memory);
+                   "\"realTime\":%ld,\"memory\":%ld,\"judgeResult\":%d}\n", result.exit_code, result.status, result.cpu_time,
+                   result.real_time, result.memory, judge_result);
         } else {
             printf(
                 "----------------"
@@ -293,11 +292,12 @@ int main(int argc, char *argv[]) {
                 "CPUTime:  %ldms\n"
                 "RealTime: %ldms\n"
                 "Memory:   %ldKB\n"
+                "Result:   %d\n"
                 ANSI_COLOR_RED
                 "\nCopyright SS, 2019\n"
                 ANSI_COLOR_RESET,
                 result.exit_code, result.status,
-                result.cpu_time, result.real_time, result.memory);
+                result.cpu_time, result.real_time, result.memory, judge_result);
         }
     }
 
