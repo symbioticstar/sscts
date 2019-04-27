@@ -9,6 +9,7 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #include "sandbox.h"
 #include "result.h"
@@ -16,7 +17,7 @@
 #include "sscts.h"
 #include "comparer.h"
 
-const char *argp_program_version = "0.5.0";
+const char *argp_program_version = "0.6.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
@@ -102,6 +103,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 
 static struct argp argp = {options, parse_opt, args_doc, doc };
 
+pid_t pid;
+
+
 int main(int argc, char *argv[]) {
     /* Default */
     struct arguments arguments;
@@ -124,7 +128,6 @@ int main(int argc, char *argv[]) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
-    pid_t pid;
     if ((pid = fork()) < 0) {
         return SCE_FORK;
     } else if (pid == 0) {
@@ -178,9 +181,6 @@ int main(int argc, char *argv[]) {
             if (setrlimit(RLIMIT_CPU, &max_time) != 0) {
                 return SCE_SETRLIMIT;
             }
-            if (setrlimit(RLIMIT_RTTIME, &max_time) != 0) {
-                return SCE_SETRLIMIT;
-            }
         }
 
         /* Set Memory Limitation */
@@ -232,6 +232,11 @@ int main(int argc, char *argv[]) {
 
         execve(arguments.bin, arguments.args, envp);
     } else {
+        if (arguments.time_limit) {
+            signal(SIGALRM, kill_childprocess);
+            alarm(arguments.time_limit + 1);
+        }
+
         int status;
         struct rusage rusage;
         if (wait4(pid, &status, WSTOPPED, &rusage) == -1) {

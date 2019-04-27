@@ -3,6 +3,7 @@
 #include <linux/seccomp.h>
 #include <limits.h>
 #include <fcntl.h>
+#include <signal.h>
 #include "sandbox.h"
 #include "ssc.h"
 
@@ -47,7 +48,7 @@ int ssc_seccomp_init(scmp_filter_ctx ctx, const int *rules, int whitelist, char 
     }
 
     /* Add rules */
-    if(ssc_seccomp_add(ctx, rules, action)) {
+    if (ssc_seccomp_add(ctx, rules, action)) {
         return SCE_LDSCMP;
     }
 
@@ -118,3 +119,7 @@ int ssc_seccomp_load_regular(char *path) {
     return 0;
 }
 
+void kill_childprocess() {
+    extern pid_t pid;
+    kill(pid, SIGKILL);
+}
