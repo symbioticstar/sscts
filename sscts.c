@@ -13,7 +13,7 @@
 #include "sandbox.h"
 #include "result.h"
 #include "ssc.h"
-
+#include "sscts.h"
 #include "comparer.h"
 
 const char *argp_program_version = "0.5.0";
@@ -44,22 +44,6 @@ static struct argp_option options[] = {
     {0}
 };
 
-struct arguments {
-    int time_limit;
-    int memory_limit;
-    int output_limit;
-    int json;
-    int uid;
-    int gid;
-    char strategy;
-    int ncts;
-    char *bin;
-    char *stdin;
-    char *stdout;
-    char *stderr;
-    char *stdans;
-    char **args;
-};
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     struct arguments *arguments = state->input;
