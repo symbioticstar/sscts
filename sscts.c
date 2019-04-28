@@ -17,7 +17,7 @@
 #include "sscts.h"
 #include "comparer.h"
 
-const char *argp_program_version = "0.6.0";
+const char *argp_program_version = "0.7.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
@@ -28,7 +28,7 @@ static struct argp_option options[] = {
     {"c-cpp", 'c', 0, 0, "(Default)"},
     {"regular", 'r', 0},
     {"no-seccomp", 'n', 0, 0, "Execute without seccomp"},
-    {0, 0, 0, 0, "Resourse Limit"},
+    {0, 0, 0, 0, "Resourse Limit (Hard)"},
     {"time-limit", 't', "SECOND", 0, "TimeLimit, in second"},
     {"memory-limit", 'm', "MiB", 0, "MemoryLimit, in MiB"},
     {"output-limit", 'a', "MiB", 0, "OutputLimit, in MiB"},
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
         /* Set Time Limitation */
         if (arguments.time_limit) {
             struct rlimit max_time;
-            max_time.rlim_cur = max_time.rlim_max = (rlim_t)arguments.time_limit + 1;
+            max_time.rlim_cur = max_time.rlim_max = (rlim_t)arguments.time_limit;
             if (setrlimit(RLIMIT_CPU, &max_time) != 0) {
                 return SCE_SETRLIMIT;
             }
@@ -186,7 +186,7 @@ int main(int argc, char *argv[]) {
         /* Set Memory Limitation */
         if (arguments.memory_limit) {
             struct rlimit max_memory;
-            max_memory.rlim_cur = max_memory.rlim_max = (rlim_t)arguments.memory_limit * 2 * 1024 * 1024;
+            max_memory.rlim_cur = max_memory.rlim_max = (rlim_t)arguments.memory_limit * 1024 * 1024;
             if (setrlimit(RLIMIT_AS, &max_memory) != 0) {
                 return SCE_SETRLIMIT;
             }
@@ -239,6 +239,7 @@ int main(int argc, char *argv[]) {
 
         int status;
         struct rusage rusage;
+        /* wait4 is deprecated */
         if (wait4(pid, &status, WSTOPPED, &rusage) == -1) {
             kill(pid, SIGKILL);
             return SCE_WAIT;
@@ -251,12 +252,14 @@ int main(int argc, char *argv[]) {
 
 
         result.exit_code = WEXITSTATUS(status);
+        result.signal = WTERMSIG(status);
         result.status = status;
         ssc_result_parse_rusage(&result, &rusage);
 
         int judge_result = -1;
 
-        if (arguments.stdans) {
+        /** If and only if program exit correctly */
+        if (arguments.stdans && !result.status) {
             if (!arguments.stdout) {
                 return SCE_RQOF;
             }
@@ -270,14 +273,16 @@ int main(int argc, char *argv[]) {
         }
 
         if (arguments.json) {
-            printf("{\"exitCode\":%d,\"status\":%d,\"cpuTime\":%ld,"
-                   "\"realTime\":%ld,\"memory\":%ld,\"judgeResult\":%d}\n", result.exit_code, result.status, result.cpu_time,
+            printf("{\"exitCode\":%d,\"status\":%d,\"signal\":%d,\"cpuTime\":%ld,"
+                   "\"realTime\":%ld,\"memory\":%ld,\"judgeResult\":%d}\n",
+                   result.exit_code, result.status, result.signal, result.cpu_time,
                    result.real_time, result.memory, judge_result);
         } else {
             printf(
                 "----------------"
                 "\nExitCode: %d\n"
                 "Status:   %d\n"
+                "Signal:   %d\n"
                 "CPUTime:  %ldms\n"
                 "RealTime: %ldms\n"
                 "Memory:   %ldKB\n"
@@ -285,7 +290,7 @@ int main(int argc, char *argv[]) {
                 ANSI_COLOR_RED
                 "\nCopyright SS, 2019\n"
                 ANSI_COLOR_RESET,
-                result.exit_code, result.status,
+                result.exit_code, result.status, result.signal,
                 result.cpu_time, result.real_time, result.memory, judge_result);
         }
     }
