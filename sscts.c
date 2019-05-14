@@ -17,7 +17,7 @@
 #include "sscts.h"
 #include "comparer.h"
 
-const char *argp_program_version = "0.7.0";
+const char *argp_program_version = "0.7.1";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
