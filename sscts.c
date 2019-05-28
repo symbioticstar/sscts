@@ -24,6 +24,7 @@ static char args_doc[] = "[BINARY] [ARGS]...";
 static struct argp_option options[] = {
     {0, 0, 0, 0, "Regular"},
     {"json", 'j', 0, 0, "Output as JSON"},
+    {"brief", 'b', 0, 0, "Brief"},
     {0, 0, 0, 0, "Seccomp Strategy"},
     {"c-cpp", 'c', 0, 0, "(Default)"},
     {"regular", 'r', 0},
@@ -73,6 +74,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'j':
             arguments->json = 1;
             break;
+        case 'b':
+            arguments->brief = 1;
+            break;
         case 'i':
             arguments->stdin = arg;
             break;
@@ -113,6 +117,7 @@ int main(int argc, char *argv[]) {
     arguments.memory_limit = 0;
     arguments.time_limit = 0;
     arguments.json = 0;
+    arguments.brief = 0;
     arguments.stdin = 0;
     arguments.stdout = 0;
     arguments.stderr = 0;
@@ -272,15 +277,27 @@ int main(int argc, char *argv[]) {
             fclose(answer_file);
         }
 
-        if (arguments.json) {
+        if (arguments.brief) {
+            if (arguments.json) {
+                printf("{\"exitCode\":%d,\"time\":%ld,"
+                       "\"memory\":%ld}\n",
+                       result.exit_code,  result.cpu_time > result.real_time ? result.cpu_time : result.real_time, result.memory);
+            } else {
+                printf(
+                    "\n ExitCode: %d    "
+                    "Time:  %ldms   "
+                    "Memory:   %ldKB\n",
+                    result.exit_code,  result.cpu_time > result.real_time ? result.cpu_time : result.real_time, result.memory);
+            }
+        } else if (arguments.json) {
             printf("{\"exitCode\":%d,\"status\":%d,\"signal\":%d,\"cpuTime\":%ld,"
                    "\"realTime\":%ld,\"memory\":%ld,\"judgeResult\":%d}\n",
                    result.exit_code, result.status, result.signal, result.cpu_time,
                    result.real_time, result.memory, judge_result);
         } else {
             printf(
-                "----------------"
-                "\nExitCode: %d\n"
+                "\n----------------\n"
+                "ExitCode: %d\n"
                 "Status:   %d\n"
                 "Signal:   %d\n"
                 "CPUTime:  %ldms\n"

@@ -6,6 +6,7 @@ struct arguments {
     int memory_limit;
     int output_limit;
     int json;
+    int brief;
     int uid;
     int gid;
     char strategy;
