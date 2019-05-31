@@ -284,9 +284,9 @@ int main(int argc, char *argv[]) {
                        result.exit_code,  result.cpu_time > result.real_time ? result.cpu_time : result.real_time, result.memory);
             } else {
                 printf(
-                    "\n ExitCode: %d    "
-                    "Time:  %ldms   "
-                    "Memory:   %ldKB\n",
+                    "\nExitCode: %d\t"
+                    "Time: %ldms\t"
+                    "Memory: %ldKB\n",
                     result.exit_code,  result.cpu_time > result.real_time ? result.cpu_time : result.real_time, result.memory);
             }
         } else if (arguments.json) {
