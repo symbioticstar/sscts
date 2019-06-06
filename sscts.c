@@ -22,12 +22,12 @@ const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
 static struct argp_option options[] = {
-    {0, 0, 0, 0, "Regular"},
+    {0, 0, 0, 0, "Python"},
     {"json", 'j', 0, 0, "Output as JSON"},
     {"brief", 'b', 0, 0, "Brief"},
     {0, 0, 0, 0, "Seccomp Strategy"},
     {"c-cpp", 'c', 0, 0, "(Default)"},
-    {"regular", 'r', 0},
+    {"python", 'p', 0},
     {"no-seccomp", 'n', 0, 0, "Execute without seccomp"},
     {0, 0, 0, 0, "Resourse Limit (Hard)"},
     {"time-limit", 't', "SECOND", 0, "TimeLimit, in second"},
@@ -62,8 +62,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'g':
             arguments->gid = atoi(arg);
             break;
-        case 'r':
-            arguments->strategy = 'r';
+        case 'p':
+            arguments->strategy = 'p';
             break;
         case 'c':
             arguments->strategy = 'c';
@@ -220,8 +220,8 @@ int main(int argc, char *argv[]) {
 
         /* Load Seccomp */
         switch (arguments.strategy) {
-            case 'r':
-                if (ssc_seccomp_load_regular(arguments.bin) != 0) {
+            case 'p':
+                if (ssc_seccomp_load_python(arguments.bin) != 0) {
                     return SCE_LDSCMP;
                 }
                 break;
@@ -235,7 +235,9 @@ int main(int argc, char *argv[]) {
         sprintf(path, "PATH=%s", getenv("PATH"));
         char* envp[] = {path, 0 };
 
-        execve(arguments.bin, arguments.args, envp);
+        if(execve(arguments.bin, arguments.args, envp)) {
+            return SCE_EXECVE;
+        };
     } else {
         if (arguments.time_limit) {
             signal(SIGALRM, kill_childprocess);
