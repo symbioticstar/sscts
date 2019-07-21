@@ -56,6 +56,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'm':
             arguments->memory_limit = atoi(arg);
             break;
+        case 'a':
+            arguments->output_limit = atoi(arg);
+            break;
         case 'u':
             arguments->uid = atoi(arg);
             break;
@@ -235,7 +238,7 @@ int main(int argc, char *argv[]) {
         sprintf(path, "PATH=%s", getenv("PATH"));
         char* envp[] = {path, 0 };
 
-        if(execve(arguments.bin, arguments.args, envp)) {
+        if (execve(arguments.bin, arguments.args, envp)) {
             return SCE_EXECVE;
         };
     } else {
