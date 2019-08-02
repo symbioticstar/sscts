@@ -11,6 +11,7 @@ struct arguments {
     int gid;
     char strategy;
     int ncts;
+    int fd;
     char *bin;
     char *stdin;
     char *stdout;

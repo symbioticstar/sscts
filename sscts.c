@@ -37,6 +37,7 @@ static struct argp_option options[] = {
     {"stdin", 'i', "FILE" },
     {"stdout", 'o', "FILE" },
     {"stderr", 'e', "FILE" },
+    {"fd", 'f', "fd", 0, "Output to file descriptor"},
     {0, 0, 0, 0, "Comparation"},
     {"stdans", 's', "FILE", 0, "Standard answer"},
     {"no-check-tailling-space", 'w', 0, 0, "OI Style"},
@@ -64,6 +65,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             break;
         case 'g':
             arguments->gid = atoi(arg);
+            break;
+        case 'f':
+            arguments->fd = atoi(arg);
             break;
         case 'p':
             arguments->strategy = 'p';
@@ -123,6 +127,7 @@ int main(int argc, char *argv[]) {
     arguments.brief = 0;
     arguments.stdin = 0;
     arguments.stdout = 0;
+    arguments.fd = 1;
     arguments.stderr = 0;
     arguments.gid = -1;
     arguments.uid = -1;
@@ -282,38 +287,40 @@ int main(int argc, char *argv[]) {
             fclose(answer_file);
         }
 
+        int fd = arguments.fd;
+
         if (arguments.brief) {
             if (arguments.json) {
-                printf("{\"exitCode\":%d,\"time\":%ld,"
-                       "\"memory\":%ld}\n",
-                       result.exit_code,  result.cpu_time > result.real_time ? result.cpu_time : result.real_time, result.memory);
+                dprintf(fd, "{\"exitCode\":%d,\"time\":%ld,"
+                        "\"memory\":%ld}\n",
+                        result.exit_code,  result.cpu_time > result.real_time ? result.cpu_time : result.real_time, result.memory);
             } else {
-                printf(
-                    "\nExitCode: %d\t"
-                    "Time: %ldms\t"
-                    "Memory: %ldKB\n",
-                    result.exit_code,  result.cpu_time > result.real_time ? result.cpu_time : result.real_time, result.memory);
+                dprintf(fd,
+                        "\nExitCode: %d\t"
+                        "Time: %ldms\t"
+                        "Memory: %ldKB\n",
+                        result.exit_code,  result.cpu_time > result.real_time ? result.cpu_time : result.real_time, result.memory);
             }
         } else if (arguments.json) {
-            printf("{\"exitCode\":%d,\"status\":%d,\"signal\":%d,\"cpuTime\":%ld,"
-                   "\"realTime\":%ld,\"memory\":%ld,\"judgeResult\":%d}\n",
-                   result.exit_code, result.status, result.signal, result.cpu_time,
-                   result.real_time, result.memory, judge_result);
+            dprintf(fd, "{\"exitCode\":%d,\"status\":%d,\"signal\":%d,\"cpuTime\":%ld,"
+                    "\"realTime\":%ld,\"memory\":%ld,\"judgeResult\":%d}\n",
+                    result.exit_code, result.status, result.signal, result.cpu_time,
+                    result.real_time, result.memory, judge_result);
         } else {
-            printf(
-                "\n----------------\n"
-                "ExitCode: %d\n"
-                "Status:   %d\n"
-                "Signal:   %d\n"
-                "CPUTime:  %ldms\n"
-                "RealTime: %ldms\n"
-                "Memory:   %ldKB\n"
-                "Result:   %d\n"
-                ANSI_COLOR_RED
-                "\nCopyright SS, 2019\n"
-                ANSI_COLOR_RESET,
-                result.exit_code, result.status, result.signal,
-                result.cpu_time, result.real_time, result.memory, judge_result);
+            dprintf(fd,
+                    "\n----------------\n"
+                    "ExitCode: %d\n"
+                    "Status:   %d\n"
+                    "Signal:   %d\n"
+                    "CPUTime:  %ldms\n"
+                    "RealTime: %ldms\n"
+                    "Memory:   %ldKB\n"
+                    "Result:   %d\n"
+                    ANSI_COLOR_RED
+                    "\nCopyright SS, 2019\n"
+                    ANSI_COLOR_RESET,
+                    result.exit_code, result.status, result.signal,
+                    result.cpu_time, result.real_time, result.memory, judge_result);
         }
     }
 
