@@ -3,16 +3,16 @@
 
 enum ssc_error {
     SUCCESS,
-    ERROR,
+    ERROR, /** 1 */
     SCE_LDSCMP,
     SCE_FORK,
     SCE_SETRLIMIT,
-    SCE_NOENT,
+    SCE_NOENT, /** 5 */
     SCE_DUP2,
     SCE_PERM,
     SCE_WAIT,
     SCE_SGID,
-    SCE_SUID,
+    SCE_SUID, /** 10*/
     SCE_RQROOT,
     SCE_RQOF,
     SCE_EXECVE,
