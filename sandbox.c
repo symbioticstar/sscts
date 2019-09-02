@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
+#include <stdio.h>
 #include "sandbox.h"
 #include "ssc.h"
 
@@ -65,7 +66,7 @@ int ssc_seccomp_add(scmp_filter_ctx ctx, const int* rules, int action) {
         if (seccomp_rule_add(ctx, action, rules[i], 0) != 0) {
             seccomp_release(ctx);
             return SCE_LDSCMP;
-        };
+        }
     }
     return 0;
 }
@@ -131,6 +132,35 @@ int ssc_seccomp_load_python(char *path) {
     seccomp_release(ctx);
     return 0;
 }
+
+int ssc_seccomp_load_manually(char *path, int argc, char **argv) {
+    scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_ALLOW);
+    if (seccomp_rule_add(ctx, SCMP_ACT_KILL, SCMP_SYS(mkdir), 0) != 0) {
+        seccomp_release(ctx);
+        return SCE_LDSCMP;
+    }
+    if (seccomp_rule_add(ctx,
+                         SCMP_ACT_KILL,
+                         SCMP_SYS(execve),
+                         1,
+                         SCMP_A0(SCMP_CMP_NE, (scmp_datum_t)(path))
+                        ) != 0) {
+        return SCE_LDSCMP;
+    }
+    for (int i = 0; i < argc; i++) {
+        if (seccomp_rule_add(ctx,
+                             SCMP_ACT_KILL,
+                             SCMP_SYS(execve),
+                             1,
+                             SCMP_A0(SCMP_CMP_NE, (scmp_datum_t)(argv[i]))
+                            ) != 0) {
+            return SCE_LDSCMP;
+        }
+    }
+    seccomp_release(ctx);
+    return 0;
+}
+
 
 void kill_childprocess() {
     extern pid_t pid;

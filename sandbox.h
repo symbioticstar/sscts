@@ -9,6 +9,7 @@ int ssc_seccomp_init(scmp_filter_ctx ctx, const int *rules, int whitelist, char 
 int ssc_seccomp_add(scmp_filter_ctx ctx, const int* rules, int action);
 int ssc_seccomp_load_c_cpp(char *path);
 int ssc_seccomp_load_python(char *path);
+int ssc_seccomp_load_manually(char *path, int argc, char **argv);
 void kill_childprocess();
 
 /* code */

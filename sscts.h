@@ -12,12 +12,14 @@ struct arguments {
     char strategy;
     int ncts;
     int fd;
+    int execve_argc;
     char *bin;
     char *stdin;
     char *stdout;
     char *stderr;
     char *stdans;
     char **args;
+    char *execve_argv[20];
 };
 
 #endif //SSCTS_H

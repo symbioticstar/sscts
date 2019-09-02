@@ -17,7 +17,7 @@
 #include "sscts.h"
 #include "comparer.h"
 
-const char *argp_program_version = "0.9.0";
+const char *argp_program_version = "0.10.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
@@ -28,6 +28,7 @@ static struct argp_option options[] = {
     {0, 0, 0, 0, "Seccomp Strategy"},
     {"c-cpp", 'c', 0, 0, "(Default)"},
     {"python", 'p', 0},
+    {"execve-allow", 'x', 0, 0, "Manually allow execve path (This will ignore all other rules)"},
     {"no-seccomp", 'n', 0, 0, "Execute without seccomp"},
     {0, 0, 0, 0, "Resourse Limit (Hard)"},
     {"time-limit", 't', "SECOND", 0, "TimeLimit, in second"},
@@ -99,6 +100,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'w':
             arguments->ncts = 1;
             break;
+        case 'x':
+            arguments->execve_argv[arguments->execve_argc++] = arg;
+            break;
         case ARGP_KEY_NO_ARGS:
             argp_usage(state);
         case ARGP_KEY_ARG:
@@ -134,6 +138,7 @@ int main(int argc, char *argv[]) {
     arguments.output_limit = 0;
     arguments.ncts = 0;
     arguments.stdans = 0;
+    arguments.execve_argc = 0;
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
@@ -227,18 +232,29 @@ int main(int argc, char *argv[]) {
         }
 
         /* Load Seccomp */
-        switch (arguments.strategy) {
-            case 'p':
-                if (ssc_seccomp_load_python(arguments.bin) != 0) {
-                    return SCE_LDSCMP;
-                }
-                break;
-            case 'c':
-                if (ssc_seccomp_load_c_cpp(arguments.bin) != 0) {
-                    return SCE_LDSCMP;
-                }
-                break;
-        }
+        if (arguments.execve_argc) {
+            if (ssc_seccomp_load_manually(
+                        arguments.bin,
+                        arguments.execve_argc,
+                        arguments.execve_argv
+                    )) {
+                return SCE_LDSCMP;
+            }
+        } else
+            switch (arguments.strategy) {
+                case 'p':
+                    if (ssc_seccomp_load_python(arguments.bin) != 0) {
+                        return SCE_LDSCMP;
+                    }
+                    break;
+                case 'c':
+                    if (ssc_seccomp_load_c_cpp(arguments.bin) != 0) {
+                        return SCE_LDSCMP;
+                    }
+                    break;
+            }
+
+        /** Load Environment Variables */
         char path[1000];
         sprintf(path, "PATH=%s", getenv("PATH"));
         char* envp[] = {path, 0 };
