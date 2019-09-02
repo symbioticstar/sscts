@@ -35,10 +35,16 @@ const int rules_python[] = {
     SCMP_SYS(fork),
     SCMP_SYS(vfork),
     SCMP_SYS(kill),
+    SCMP_SYS(mkdir),
     INT_MAX,
 };
 
-int ssc_seccomp_init(scmp_filter_ctx ctx, const int *rules, int whitelist, char *path) {
+const int rules_default[] = {
+    SCMP_SYS(mkdir),
+    INT_MAX,
+};
+
+int ssc_seccomp_init(scmp_filter_ctx ctx, const int *rules, int whitelist) {
 
     /* Create Filter */
     int action;
@@ -83,7 +89,7 @@ int ssc_seccomp_load_c_cpp(char *path) {
         }
     }
     /* Load */
-    if (ssc_seccomp_init(ctx, rules_c_cpp, 1, path)) {
+    if (ssc_seccomp_init(ctx, rules_c_cpp, 1)) {
         seccomp_release(ctx);
         return SCE_LDSCMP;
     }
@@ -98,34 +104,41 @@ int ssc_seccomp_load_python(char *path) {
 
     /* Add Extra Rules*/
     if (seccomp_rule_add(ctx, SCMP_ACT_KILL, SCMP_SYS(execve), 1, SCMP_A0(SCMP_CMP_NE, (scmp_datum_t)(path))) != 0) {
+        seccomp_release(ctx);
         return SCE_LDSCMP;
     }
 
     if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EACCES), SCMP_SYS(socket), 0) != 0) {
+        seccomp_release(ctx);
         return SCE_LDSCMP;
     }
 
     // forbid r&rw on open & openat
 
     if (seccomp_rule_add(ctx, SCMP_ACT_KILL, SCMP_SYS(open), 1, SCMP_A1(SCMP_CMP_MASKED_EQ, O_WRONLY, O_WRONLY)) != 0) {
+        seccomp_release(ctx);
         return SCE_LDSCMP;
     }
 
     if (seccomp_rule_add(ctx, SCMP_ACT_KILL, SCMP_SYS(openat), 1, SCMP_A2(SCMP_CMP_MASKED_EQ, O_RDWR, O_RDWR)) != 0) {
+        seccomp_release(ctx);
         return SCE_LDSCMP;
     }
 
     if (seccomp_rule_add(ctx, SCMP_ACT_KILL, SCMP_SYS(openat), 1, SCMP_A2(SCMP_CMP_MASKED_EQ, O_WRONLY, O_WRONLY)) != 0) {
+        seccomp_release(ctx);
         return SCE_LDSCMP;
     }
 
     if (seccomp_rule_add(ctx, SCMP_ACT_KILL, SCMP_SYS(open), 1, SCMP_A1(SCMP_CMP_MASKED_EQ, O_RDWR, O_RDWR)) != 0) {
+        seccomp_release(ctx);
         return SCE_LDSCMP;
     }
 
 
     /* Load */
-    if (ssc_seccomp_init(ctx, rules_python, 0, path)) {
+    if (ssc_seccomp_init(ctx, rules_python, 0)) {
+        seccomp_release(ctx);
         return SCE_LDSCMP;
     }
 
@@ -135,28 +148,35 @@ int ssc_seccomp_load_python(char *path) {
 
 int ssc_seccomp_load_manually(char *path, int argc, char **argv) {
     scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_ALLOW);
-    if (seccomp_rule_add(ctx, SCMP_ACT_KILL, SCMP_SYS(mkdir), 0) != 0) {
-        seccomp_release(ctx);
-        return SCE_LDSCMP;
-    }
+
     if (seccomp_rule_add(ctx,
                          SCMP_ACT_KILL,
                          SCMP_SYS(execve),
                          1,
                          SCMP_A0(SCMP_CMP_NE, (scmp_datum_t)(path))
                         ) != 0) {
+        seccomp_release(ctx);
         return SCE_LDSCMP;
     }
     for (int i = 0; i < argc; i++) {
+        if (!argv[i]) break;
         if (seccomp_rule_add(ctx,
                              SCMP_ACT_KILL,
                              SCMP_SYS(execve),
                              1,
                              SCMP_A0(SCMP_CMP_NE, (scmp_datum_t)(argv[i]))
                             ) != 0) {
+            seccomp_release(ctx);
             return SCE_LDSCMP;
         }
     }
+
+    /* Load */
+    if (ssc_seccomp_init(ctx, rules_default, 0)) {
+        seccomp_release(ctx);
+        return SCE_LDSCMP;
+    }
+
     seccomp_release(ctx);
     return 0;
 }

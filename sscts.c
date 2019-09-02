@@ -28,7 +28,11 @@ static struct argp_option options[] = {
     {0, 0, 0, 0, "Seccomp Strategy"},
     {"c-cpp", 'c', 0, 0, "(Default)"},
     {"python", 'p', 0},
-    {"execve-allow", 'x', 0, 0, "Manually allow execve path (This will ignore all other rules)"},
+    {
+        "execve-allow", 'x', "SYSTEM_CALL", OPTION_ARG_OPTIONAL,
+        "Manually allow execve path (This will ignore all other rules). "
+        "If SYSTEM_CALL is not defined, a default rule which can only execve the first binary will be provided"
+    },
     {"no-seccomp", 'n', 0, 0, "Execute without seccomp"},
     {0, 0, 0, 0, "Resourse Limit (Hard)"},
     {"time-limit", 't', "SECOND", 0, "TimeLimit, in second"},
