@@ -1,57 +1,54 @@
+#include <argp.h>
+#include <grp.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <argp.h>
-#include <unistd.h>
-#include <grp.h>
 #include <string.h>
+#include <unistd.h>
 
-#include <sys/time.h>
+#include <signal.h>
 #include <sys/resource.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <signal.h>
 
-#include "sandbox.h"
+#include "comparer.h"
 #include "result.h"
+#include "sandbox.h"
 #include "ssc.h"
 #include "sscts.h"
-#include "comparer.h"
 
-const char *argp_program_version = "0.10.0";
+const char *argp_program_version = "0.11.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
 static struct argp_option options[] = {
     {0, 0, 0, 0, "Python"},
-    {"json", 'j', 0, 0, "Output as JSON"},
-    {"brief", 'b', 0, 0, "Brief"},
+    {"json", 'j', 0, 0, "Output as JSON (removed)"},
+    {"brief", 'b', 0, 0, "Brief (removed)"},
     {0, 0, 0, 0, "Seccomp Strategy"},
     {"c-cpp", 'c', 0, 0, "(Default)"},
     {"python", 'p', 0},
-    {
-        "execve-allow", 'x', "SYSTEM_CALL", OPTION_ARG_OPTIONAL,
-        "Manually allow execve path (This will ignore all other rules). "
-        "If SYSTEM_CALL is not defined, a default rule which can only execve the first binary will be provided"
-    },
+    {"execve-allow", 'x', "SYSTEM_CALL", OPTION_ARG_OPTIONAL,
+     "Manually allow execve path (This will ignore all other rules). "
+     "If SYSTEM_CALL is not defined, a default rule which can only execve the "
+     "first binary will be provided"},
     {"no-seccomp", 'n', 0, 0, "Execute without seccomp"},
     {0, 0, 0, 0, "Resourse Limit (Hard)"},
     {"time-limit", 't', "SECOND", 0, "TimeLimit, in second"},
     {"memory-limit", 'm', "MiB", 0, "MemoryLimit, in MiB"},
     {"output-limit", 'a', "MiB", 0, "OutputLimit, in MiB"},
     {0, 0, 0, 0, "File Redirect"},
-    {"stdin", 'i', "FILE" },
-    {"stdout", 'o', "FILE" },
-    {"stderr", 'e', "FILE" },
+    {"stdin", 'i', "FILE"},
+    {"stdout", 'o', "FILE"},
+    {"stderr", 'e', "FILE"},
     {"fd", 'f', "fd", 0, "Output to file descriptor"},
     {0, 0, 0, 0, "Comparation"},
     {"stdans", 's', "FILE", 0, "Standard answer"},
-    {"no-check-tailling-space", 'w', 0, 0, "OI Style"},
+    {"no-check-tailling-space", 'w', 0, 0, "OI Style (removed)"},
     {0, 0, 0, 0, "Permission, must call with sudo"},
     {"gid", 'g', "GID"},
     {"uid", 'u', "UID"},
-    {0}
-};
-
+    {0}};
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     struct arguments *arguments = state->input;
@@ -83,12 +80,6 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'n':
             arguments->strategy = 0;
             break;
-        case 'j':
-            arguments->json = 1;
-            break;
-        case 'b':
-            arguments->brief = 1;
-            break;
         case 'i':
             arguments->stdin = arg;
             break;
@@ -101,11 +92,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 's':
             arguments->stdans = arg;
             break;
-        case 'w':
-            arguments->ncts = 1;
-            break;
         case 'x':
             arguments->execve_argv[arguments->execve_argc++] = arg;
+            break;
+        case 'j':
+        case 'w':
+        case 'b':
             break;
         case ARGP_KEY_NO_ARGS:
             argp_usage(state);
@@ -120,10 +112,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     return 0;
 }
 
-static struct argp argp = {options, parse_opt, args_doc, doc };
+static struct argp argp = {options, parse_opt, args_doc, doc};
 
 pid_t pid;
-
 
 int main(int argc, char *argv[]) {
     /* Default */
@@ -131,8 +122,6 @@ int main(int argc, char *argv[]) {
     arguments.strategy = 'c';
     arguments.memory_limit = 0;
     arguments.time_limit = 0;
-    arguments.json = 0;
-    arguments.brief = 0;
     arguments.stdin = 0;
     arguments.stdout = 0;
     arguments.fd = 1;
@@ -140,7 +129,6 @@ int main(int argc, char *argv[]) {
     arguments.gid = -1;
     arguments.uid = -1;
     arguments.output_limit = 0;
-    arguments.ncts = 0;
     arguments.stdans = 0;
     arguments.execve_argc = 0;
 
@@ -174,7 +162,8 @@ int main(int argc, char *argv[]) {
             }
         }
         if (arguments.stderr) {
-            if (output_file && strcmp(arguments.stdout, arguments.stderr) == 0) {
+            if (output_file &&
+                strcmp(arguments.stdout, arguments.stderr) == 0) {
                 error_file = output_file;
             } else {
                 error_file = fopen(arguments.stderr, "w");
@@ -190,7 +179,8 @@ int main(int argc, char *argv[]) {
         /* Set Output Limitation */
         if (arguments.output_limit) {
             struct rlimit output_limit;
-            output_limit.rlim_cur = output_limit.rlim_max = (rlim_t)arguments.output_limit * 1024 * 1024;
+            output_limit.rlim_cur = output_limit.rlim_max =
+                (rlim_t)arguments.output_limit * 1024 * 1024;
             if (setrlimit(RLIMIT_FSIZE, &output_limit) != 0) {
                 return SCE_SETRLIMIT;
             }
@@ -199,7 +189,8 @@ int main(int argc, char *argv[]) {
         /* Set Time Limitation */
         if (arguments.time_limit) {
             struct rlimit max_time;
-            max_time.rlim_cur = max_time.rlim_max = (rlim_t)arguments.time_limit;
+            max_time.rlim_cur = max_time.rlim_max =
+                (rlim_t)arguments.time_limit;
             if (setrlimit(RLIMIT_CPU, &max_time) != 0) {
                 return SCE_SETRLIMIT;
             }
@@ -208,25 +199,28 @@ int main(int argc, char *argv[]) {
         /* Set Memory Limitation */
         if (arguments.memory_limit) {
             struct rlimit max_memory;
-            max_memory.rlim_cur = max_memory.rlim_max = (rlim_t)arguments.memory_limit * 1024 * 1024;
+            max_memory.rlim_cur = max_memory.rlim_max =
+                (rlim_t)arguments.memory_limit * 1024 * 1024;
             if (setrlimit(RLIMIT_AS, &max_memory) != 0) {
                 return SCE_SETRLIMIT;
             }
         }
 
         /* Set gid. Root required.*/
-        gid_t group_list[] = {arguments.gid };
-        if (arguments.gid  != -1) {
+        gid_t group_list[] = {arguments.gid};
+        if (arguments.gid != -1) {
             if (geteuid() != 0) {
                 return SCE_RQROOT;
             }
-            if (setgid(arguments.gid) == -1 || setgroups(sizeof(group_list) / sizeof(gid_t), group_list) == -1) {
+            if (setgid(arguments.gid) == -1 ||
+                setgroups(sizeof(group_list) / sizeof(gid_t), group_list) ==
+                    -1) {
                 return SCE_SGID;
             }
         }
 
         /* Set uid. Root required. */
-        if (arguments.uid  != -1) {
+        if (arguments.uid != -1) {
             if (geteuid() != 0) {
                 return SCE_RQROOT;
             }
@@ -237,11 +231,8 @@ int main(int argc, char *argv[]) {
 
         /* Load Seccomp */
         if (arguments.execve_argc) {
-            if (ssc_seccomp_load_manually(
-                        arguments.bin,
-                        arguments.execve_argc,
-                        arguments.execve_argv
-                    )) {
+            if (ssc_seccomp_load_manually(arguments.bin, arguments.execve_argc,
+                                          arguments.execve_argv)) {
                 return SCE_LDSCMP;
             }
         } else
@@ -261,7 +252,7 @@ int main(int argc, char *argv[]) {
         /** Load Environment Variables */
         char path[1000];
         sprintf(path, "PATH=%s", getenv("PATH"));
-        char* envp[] = {path, 0 };
+        char *envp[] = {path, 0};
 
         if (execve(arguments.bin, arguments.args, envp)) {
             return SCE_EXECVE;
@@ -283,8 +274,9 @@ int main(int argc, char *argv[]) {
         struct ssc_result result;
 
         gettimeofday(&end, NULL);
-        result.real_time = (uint64_t)(end.tv_sec * 1000 + end.tv_usec / 1000 - start.tv_sec * 1000 - start.tv_usec / 1000);
-
+        result.real_time =
+            (uint64_t)(end.tv_sec * 1000 + end.tv_usec / 1000 -
+                       start.tv_sec * 1000 - start.tv_usec / 1000);
 
         result.exit_code = WEXITSTATUS(status);
         result.signal = WTERMSIG(status);
@@ -294,54 +286,28 @@ int main(int argc, char *argv[]) {
         int judge_result = -1;
 
         /** If and only if program exit correctly */
-        if (arguments.stdans && !result.status) {
-            if (!arguments.stdout) {
-                return SCE_RQOF;
-            }
-            FILE *output_file = fopen(arguments.stdout, "r"), *answer_file = fopen(arguments.stdans, "r") ;
-            if (!output_file || !answer_file) {
-                return SCE_NOENT;
-            }
-            judge_result = result_cmp(answer_file, output_file, arguments.ncts);
-            fclose(output_file);
-            fclose(answer_file);
-        }
+        // if (arguments.stdans && !result.status) {
+        //     if (!arguments.stdout) {
+        //         return SCE_RQOF;
+        //     }
+        //     FILE *output_file = fopen(arguments.stdout, "r"),
+        //          *answer_file = fopen(arguments.stdans, "r");
+        //     if (!output_file || !answer_file) {
+        //         return SCE_NOENT;
+        //     }
+        //     judge_result = result_cmp(answer_file, output_file,
+        //     arguments.ncts); fclose(output_file); fclose(answer_file);
+        // }
 
         int fd = arguments.fd;
 
-        if (arguments.brief) {
-            if (arguments.json) {
-                dprintf(fd, "{\"exitCode\":%d,\"time\":%ld,"
-                        "\"memory\":%ld}\n",
-                        result.exit_code,  result.cpu_time > result.real_time ? result.cpu_time : result.real_time, result.memory);
-            } else {
-                dprintf(fd,
-                        "\nExitCode: %d\t"
-                        "Time: %ldms\t"
-                        "Memory: %ldKB\n",
-                        result.exit_code,  result.cpu_time > result.real_time ? result.cpu_time : result.real_time, result.memory);
-            }
-        } else if (arguments.json) {
-            dprintf(fd, "{\"exitCode\":%d,\"status\":%d,\"signal\":%d,\"cpuTime\":%ld,"
-                    "\"realTime\":%ld,\"memory\":%ld,\"judgeResult\":%d}\n",
-                    result.exit_code, result.status, result.signal, result.cpu_time,
-                    result.real_time, result.memory, judge_result);
-        } else {
-            dprintf(fd,
-                    "\n----------------\n"
-                    "ExitCode: %d\n"
-                    "Status:   %d\n"
-                    "Signal:   %d\n"
-                    "CPUTime:  %ldms\n"
-                    "RealTime: %ldms\n"
-                    "Memory:   %ldKB\n"
-                    "Result:   %d\n"
-                    ANSI_COLOR_RED
-                    "\nCopyright SS, 2019\n"
-                    ANSI_COLOR_RESET,
-                    result.exit_code, result.status, result.signal,
-                    result.cpu_time, result.real_time, result.memory, judge_result);
-        }
+        dprintf(fd,
+                "{\"exitCode\":%d,\"status\":%d,\"signal\":%d,\"cpuTime\":%ld,"
+                "\"sysTime\":%ld,\"userTime\":%ld,"
+                "\"realTime\":%ld,\"memory\":%ld,\"judgeResult\":%d}\n",
+                result.exit_code, result.status, result.signal, result.cpu_time,
+                result.sys_time, result.user_time, result.real_time,
+                result.memory, judge_result);
     }
 
     return 0;

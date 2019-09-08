@@ -6,6 +6,8 @@
 
 struct ssc_result {
     uint64_t cpu_time;
+    uint64_t user_time;
+    uint64_t sys_time;
     uint64_t real_time;
     uint64_t memory;
     int exit_code; 
