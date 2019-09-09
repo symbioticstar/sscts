@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "wait.h": "c",
+        "result.h": "c",
+        "signal.h": "c",
+        "resource.h": "c"
+    }
+}
