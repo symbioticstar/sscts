@@ -2,9 +2,11 @@
 #include <stdio.h>
 
 #define fgetc fgetc_unlocked
+#define BUFF_SIZE (512 * 1024)
 
 FILE *std, *ans;
 int s, a;
+char b1[BUFF_SIZE];
 
 /**
  * return positive if Accepted
@@ -43,6 +45,7 @@ int main(int args, char **argv) {
         puts("0");
         return 2;
     }
+    setvbuf(std, b1, _IOFBF, BUFF_SIZE);
     s = fgetc(std), a = fgetc(ans);
     int result = 0;
     while (!result) {
