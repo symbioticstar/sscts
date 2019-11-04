@@ -6,7 +6,7 @@
 
 FILE *std, *ans;
 int s, a;
-char b1[BUFF_SIZE];
+char b1[BUFF_SIZE], b2[BUFF_SIZE];
 
 /**
  * return positive if Accepted
@@ -46,6 +46,7 @@ int main(int args, char **argv) {
         return 2;
     }
     setvbuf(std, b1, _IOFBF, BUFF_SIZE);
+    setvbuf(ans, b2, _IOFBF, BUFF_SIZE);
     s = fgetc(std), a = fgetc(ans);
     int result = 0;
     while (!result) {
