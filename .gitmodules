@@ -1,0 +1,3 @@
+[submodule "comparer"]
+	path = comparer
+	url = https://github.com/Nugine/ojcmp.git
