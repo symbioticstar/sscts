@@ -5,5 +5,5 @@ all:
 	cd comparer
 	cargo build --release
 install:
-	cp sscts sc /usr/local/bin
-	cp comparer/target/release/ojcmp /usr/loca/bin 
+	cp sscts /usr/local/bin
+	cp comparer/target/release/ojcmp /usr/local/bin 
