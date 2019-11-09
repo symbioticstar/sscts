@@ -26,7 +26,7 @@ int next() {
     if (s == a && !~s) return 2;
     if (isspace(s) && isspace(a)) {
         while (s != '\n' && isspace(s)) s = fgetc(std);
-        while (a != '\n' && isspace(a)) a = fgetc(std);
+        while (a != '\n' && isspace(a)) a = fgetc(ans);
         if (isspace(s)) s = fgetc(std);
         if (isspace(a)) a = fgetc(ans);
         return 0;

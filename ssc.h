@@ -15,7 +15,7 @@ enum ssc_error {
     SCE_SUID, /** 10*/
     SCE_RQROOT,
     SCE_RQOF,
-    SCE_EXECVE,
+    SCE_EXEC,
 };
 
 enum ssc_judge_result {

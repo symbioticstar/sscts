@@ -14,7 +14,6 @@ struct arguments {
     char *stdin;
     char *stdout;
     char *stderr;
-    char *stdans;
     char **args;
     char *execve_argv[20];
 };

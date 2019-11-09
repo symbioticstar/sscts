@@ -11,28 +11,29 @@
 #include <sys/types.h>
 #include <wait.h>
 
-#include "comparer.h"
 #include "result.h"
 #include "sandbox.h"
 #include "ssc.h"
 #include "sscts.h"
 
-const char *argp_program_version = "0.11.0";
+const char *argp_program_version = "0.12.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "SSX Online Judge Core - C version";
 static char args_doc[] = "[BINARY] [ARGS]...";
 static struct argp_option options[] = {
-    {0, 0, 0, 0, "Python"},
+    {0, 0, 0, 0, "Removed Stuff"},
     {"json", 'j', 0, 0, "Output as JSON (removed)"},
     {"brief", 'b', 0, 0, "Brief (removed)"},
+    {"no-check-tailling-space", 'w', 0, 0, "OI Style (removed)"},
+    {"stdans", 's', "FILE", 0, "Standard answer (removed)"},
     {0, 0, 0, 0, "Seccomp Strategy"},
-    {"c-cpp", 'c', 0, 0, "(Default)"},
+    {"c-cpp", 'c', 0},
     {"python", 'p', 0},
     {"execve-allow", 'x', "SYSTEM_CALL", OPTION_ARG_OPTIONAL,
      "Manually allow execve path (This will ignore all other rules). "
      "If SYSTEM_CALL is not defined, a default rule which can only execve the "
      "first binary will be provided"},
-    {"no-seccomp", 'n', 0, 0, "Execute without seccomp"},
+    {"no-seccomp", 'n', 0, 0, "Execute without seccomp (Default)"},
     {0, 0, 0, 0, "Resourse Limit (Hard)"},
     {"time-limit", 't', "SECOND", 0, "TimeLimit, in second"},
     {"memory-limit", 'm', "MiB", 0, "MemoryLimit, in MiB"},
@@ -41,10 +42,7 @@ static struct argp_option options[] = {
     {"stdin", 'i', "FILE"},
     {"stdout", 'o', "FILE"},
     {"stderr", 'e', "FILE"},
-    {"fd", 'f', "fd", 0, "Output to file descriptor"},
-    {0, 0, 0, 0, "Comparation"},
-    {"stdans", 's', "FILE", 0, "Standard answer"},
-    {"no-check-tailling-space", 'w', 0, 0, "OI Style (removed)"},
+    {"fd", 'f', "fd", 0, "The file descriptor that will output to"},
     {0, 0, 0, 0, "Permission, must call with sudo"},
     {"gid", 'g', "GID"},
     {"uid", 'u', "UID"},
@@ -89,15 +87,14 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'e':
             arguments->stderr = arg;
             break;
-        case 's':
-            arguments->stdans = arg;
-            break;
+
         case 'x':
             arguments->execve_argv[arguments->execve_argc++] = arg;
             break;
         case 'j':
         case 'w':
         case 'b':
+        case 's':
             break;
         case ARGP_KEY_NO_ARGS:
             argp_usage(state);
@@ -119,7 +116,7 @@ pid_t pid;
 int main(int argc, char *argv[]) {
     /* Default */
     struct arguments arguments;
-    arguments.strategy = 'c';
+    arguments.strategy = 0;
     arguments.memory_limit = 0;
     arguments.time_limit = 0;
     arguments.stdin = 0;
@@ -129,7 +126,6 @@ int main(int argc, char *argv[]) {
     arguments.gid = -1;
     arguments.uid = -1;
     arguments.output_limit = 0;
-    arguments.stdans = 0;
     arguments.execve_argc = 0;
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
@@ -249,13 +245,8 @@ int main(int argc, char *argv[]) {
                     break;
             }
 
-        /** Load Environment Variables */
-        char path[1000];
-        sprintf(path, "PATH=%s", getenv("PATH"));
-        char *envp[] = {path, 0};
-
-        if (execve(arguments.bin, arguments.args, envp)) {
-            return SCE_EXECVE;
+        if (execvp(arguments.bin, arguments.args)) {
+            return SCE_EXEC;
         };
     } else {
         if (arguments.time_limit) {
@@ -283,31 +274,15 @@ int main(int argc, char *argv[]) {
         result.status = status;
         ssc_result_parse_rusage(&result, &rusage);
 
-        int judge_result = -1;
-
-        /** If and only if program exit correctly */
-        // if (arguments.stdans && !result.status) {
-        //     if (!arguments.stdout) {
-        //         return SCE_RQOF;
-        //     }
-        //     FILE *output_file = fopen(arguments.stdout, "r"),
-        //          *answer_file = fopen(arguments.stdans, "r");
-        //     if (!output_file || !answer_file) {
-        //         return SCE_NOENT;
-        //     }
-        //     judge_result = result_cmp(answer_file, output_file,
-        //     arguments.ncts); fclose(output_file); fclose(answer_file);
-        // }
-
         int fd = arguments.fd;
 
         dprintf(fd,
                 "{\"exitCode\":%d,\"status\":%d,\"signal\":%d,\"cpuTime\":%ld,"
                 "\"sysTime\":%ld,\"userTime\":%ld,"
-                "\"realTime\":%ld,\"memory\":%ld,\"judgeResult\":%d}\n",
+                "\"realTime\":%ld,\"memory\":%ld}\n",
                 result.exit_code, result.status, result.signal, result.cpu_time,
                 result.sys_time, result.user_time, result.real_time,
-                result.memory, judge_result);
+                result.memory);
     }
 
     return 0;
