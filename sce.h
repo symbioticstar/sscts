@@ -16,6 +16,11 @@ enum ssc_error {
     SCE_RQROOT,
     SCE_RQOF,
     SCE_EXEC,
+    SCE_CG,
+    SCE_CGRST, /* 15 */
+    SCE_CGNOENT,
+    SCE_CGCU,
+    SCE_GETGRNAM,
 };
 
 enum ssc_judge_result {
@@ -25,13 +30,12 @@ enum ssc_judge_result {
     SCR_SE,
 };
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_YELLOW "\x1b[33m"
+#define ANSI_COLOR_BLUE "\x1b[34m"
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
+#define ANSI_COLOR_CYAN "\x1b[36m"
+#define ANSI_COLOR_RESET "\x1b[0m"
 
-#endif // SSC_H
-
+#endif  // SSC_H

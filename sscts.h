@@ -7,11 +7,9 @@ struct arguments {
     int output_limit;
     int uid;
     int gid;
-    char strategy;
     int fd;
     int execve_argc;
     char *bin;
-    char *stdin;
     char *stdout;
     char *stderr;
     char **args;
