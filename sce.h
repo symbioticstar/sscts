@@ -16,10 +16,14 @@ enum ssc_error {
     SCE_RQROOT,
     SCE_RQOF,
     SCE_EXEC,
-    SCE_CG,
-    SCE_CGRST, /* 15 */
+    SCE_ECHO,
+    SCE_CG, /* 15 */
+    SCE_CGRST,
     SCE_CGNOENT,
     SCE_CGCU,
+    SCE_CGSU,
+    SCE_CGIC, /* 20 */
+    SCE_CGAT,
     SCE_GETGRNAM,
 };
 

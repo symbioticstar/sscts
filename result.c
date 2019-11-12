@@ -15,7 +15,7 @@ void output_result_to_fd(int fd, struct ssc_result result) {
     dprintf(fd,
             "{\"exitCode\":%d,\"status\":%d,\"signal\":%d,\"cpuTime\":%ld,"
             "\"sysTime\":%ld,\"userTime\":%ld,"
-            "cgEnabled\":%d,"
+            "\"cgEnabled\":%d,"
             "\"realTime\":%ld,\"memory\":%ld}\n",
             result.exit_code, result.status, result.signal, result.cpu_time,
             result.sys_time, result.user_time, result.cg_enabled,

@@ -121,18 +121,18 @@ int main(int argc, char *argv[]) {
     if (is_root && (access(CGFS_BASE "/cpu/" CGFS_NAME, F_OK) != 0 ||
                     access(CGFS_BASE "/memory/" CGFS_NAME, F_OK) != 0)) {
         if (init_cgroup("cpu")) {
-            return SCE_CG;
+            return SCE_CGIC;
         }
         if (init_cgroup("memory")) {
-            return SCE_CG;
+            return SCE_CGIC;
         }
     }
     if (is_root) {
         if (setup_cgroup("cpu", cg_cpu)) {
-            return SCE_CG;
+            return SCE_CGSU;
         }
         if (setup_cgroup("memory", cg_memory)) {
-            return SCE_CG;
+            return SCE_CGSU;
         }
     }
 
@@ -142,10 +142,10 @@ int main(int argc, char *argv[]) {
         if (is_root) {
             int p = getpid();
             if (add_pid_to_cg(p, cg_cpu)) {
-                return SCE_CG;
+                return SCE_CGAT;
             }
             if (add_pid_to_cg(p, cg_memory)) {
-                return SCE_CG;
+                return SCE_CGAT;
             }
         }
 

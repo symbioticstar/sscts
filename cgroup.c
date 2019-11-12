@@ -11,24 +11,24 @@
 #include "sce.h"
 
 static int echo(const char *out, const char *file) {
-    if (!out) return SCE_CG;
+    if (!out) return SCE_ECHO;
     size_t len = strlen(out);
-    if (!len) return SCE_CG;
+    if (!len) return SCE_ECHO;
 
     int fd = open(file, O_WRONLY);
     if (fd == -1) {
-        return SCE_CG;
+        return SCE_ECHO;
     }
     ssize_t r = write(fd, out, len);
     if (r == -1) {
-        return SCE_CG;
+        return SCE_ECHO;
     }
     if (r != len) {
-        return SCE_CG;
+        return SCE_ECHO;
     }
     int ret = close(fd);
     if (ret == -1) {
-        return SCE_CG;
+        return SCE_ECHO;
     }
     return 0;
 }
@@ -64,7 +64,7 @@ int add_pid_to_cg(pid_t pid, const char *sub_group) {
     char pid_str[32] = {0};
     sprintf(pid_str, "%zd", (ssize_t)pid);
     int ret = echo(pid_str, file);
-    if (ret) return SCE_CG;
+    if (ret) return SCE_CGAT;
     return 0;
 }
 
