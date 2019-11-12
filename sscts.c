@@ -75,7 +75,6 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'x':
             arguments->execve_argv[arguments->execve_argc++] = arg;
             break;
-
         case ARGP_KEY_NO_ARGS:
             argp_usage(state);
         case ARGP_KEY_ARG:
@@ -253,6 +252,12 @@ int main(int argc, char *argv[]) {
             result.user_time /= 1e6;
             result.memory >>= 10;
             result.cpu_time = result.sys_time + result.user_time;
+            if (cleanup_cg(cg_cpu)) {
+                return SCE_CGCU;
+            }
+            if (cleanup_cg(cg_memory)) {
+                return SCE_CGCU;
+            }
         } else {
             ssc_result_parse_rusage(&result, &rusage);
             result.cg_enabled = 0;
