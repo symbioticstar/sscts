@@ -47,7 +47,6 @@ int init_cgroup(const char *group_name) {
 }
 
 int setup_cgroup(const char *group_name, char *sub_group, unsigned t) {
-
     sprintf(sub_group, "%s/%s/%s/%u", CGFS_BASE, group_name, CGFS_NAME, t);
     int ret = mkdir(sub_group, 0755);
     if (ret) {
@@ -58,9 +57,9 @@ int setup_cgroup(const char *group_name, char *sub_group, unsigned t) {
     return 0;
 }
 
-int flush_mem(const char *sub_group) {
+int flush(const char *sub_group, const char *name) {
     char file[512] = {0};
-    sprintf(file, "%s/memory.max_usage_in_bytes", sub_group);
+    sprintf(file, "%s/%s", sub_group, name);
     int ret = echo("0", file);
     if (ret) return SCE_CGCU;
     return 0;
