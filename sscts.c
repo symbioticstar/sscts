@@ -266,8 +266,8 @@ int main(int argc, char *argv[]) {
                               &result.memory)) {
                 return SCE_CGRST;
             }
-            // result.sys_time /= 1e6;
-            // result.user_time /= 1e6;
+            result.sys_time /= 1e6;
+            result.user_time /= 1e6;
             result.memory >>= 10;
             result.cpu_time = result.sys_time + result.user_time;
             cleanup_cg(cg_cpu);
