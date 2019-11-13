@@ -46,15 +46,23 @@ int init_cgroup(const char *group_name) {
     return 0;
 }
 
-int setup_cgroup(const char *group_name, char *sub_group) {
-    sprintf(sub_group, "%s/%s/%s/%u", CGFS_BASE, group_name, CGFS_NAME,
-            getpid());
+int setup_cgroup(const char *group_name, char *sub_group, unsigned t) {
+
+    sprintf(sub_group, "%s/%s/%s/%u", CGFS_BASE, group_name, CGFS_NAME, t);
     int ret = mkdir(sub_group, 0755);
     if (ret) {
         return SCE_CG;
     }
     // no checking memory.max_usage_in_bytes equals zero here
     // underlying risk
+    return 0;
+}
+
+int flush_mem(const char *sub_group) {
+    char file[512] = {0};
+    sprintf(file, "%s/memory.max_usage_in_bytes", sub_group);
+    int ret = echo("0", file);
+    if (ret) return SCE_CGCU;
     return 0;
 }
 

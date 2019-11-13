@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <signal.h>
 #include <sys/resource.h>
@@ -126,11 +127,22 @@ int main(int argc, char *argv[]) {
             return SCE_CGIC;
         }
     }
+
     if (is_root) {
-        if (setup_cgroup("cpu", cg_cpu)) {
+        unsigned char buffer[10];
+        int fd = open("/dev/urandom", O_RDONLY);
+        if (!~read(fd, buffer, 8)) {
+            return SCE_CG;
+        }
+        close(fd);
+        unsigned t = 0;
+        for (int i = 0; i < 8; i++) {
+            t = t * 131 + buffer[i];
+        }
+        if (setup_cgroup("cpu", cg_cpu, t)) {
             return SCE_CGSU;
         }
-        if (setup_cgroup("memory", cg_memory)) {
+        if (setup_cgroup("memory", cg_memory, t)) {
             return SCE_CGSU;
         }
     }
@@ -138,16 +150,6 @@ int main(int argc, char *argv[]) {
     if ((pid = fork()) < 0) {
         return SCE_FORK;
     } else if (pid == 0) {
-        if (is_root) {
-            int p = getpid();
-            if (add_pid_to_cg(p, cg_cpu)) {
-                return SCE_CGAT;
-            }
-            if (add_pid_to_cg(p, cg_memory)) {
-                return SCE_CGAT;
-            }
-        }
-
         /* Redirection */
         FILE *output_file = NULL, *error_file = NULL;
 
@@ -172,6 +174,19 @@ int main(int argc, char *argv[]) {
             }
             if (dup2(fileno(error_file), fileno(stderr)) == -1) {
                 return SCE_DUP2;
+            }
+        }
+
+        if (is_root) {
+            int p = getpid();
+            if (add_pid_to_cg(p, cg_cpu)) {
+                return SCE_CGAT;
+            }
+            if (add_pid_to_cg(p, cg_memory)) {
+                return SCE_CGAT;
+            }
+            if (flush_mem(cg_memory)) {
+                return SCE_CGCU;
             }
         }
 
