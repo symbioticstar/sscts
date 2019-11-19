@@ -5,6 +5,7 @@ struct arguments {
     int time_limit;
     int memory_limit;
     int output_limit;
+    int pids_max;
     int uid;
     int gid;
     int fd;

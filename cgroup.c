@@ -33,21 +33,29 @@ static int echo(const char *out, const char *file) {
     return 0;
 }
 
-int init_cgroup(const char *group_name) {
+int _ensure_cgroup(const char *group_name_full) {
+    if (access(group_name_full, F_OK)) {
+        if (init_cgroup(group_name_full)) {
+            return SCE_CGIC;
+        }
+    }
+    return 0;
+}
+
+int init_cgroup(const char *group_name_full) {
     extern int is_root;
     if (!is_root) return SCE_PERM;
     int ret;
     mode_t perm = 0755;
-    char name[512] = {0};
-    sprintf(name, "%s/%s/%s", CGFS_BASE, group_name, CGFS_NAME);
-    if ((ret = mkdir(name, perm))) {
+    if ((ret = mkdir(group_name_full, perm))) {
         return SCE_PERM;
     }
     return 0;
 }
 
-int setup_cgroup(const char *group_name, char *sub_group, unsigned t) {
-    sprintf(sub_group, "%s/%s/%s/%u", CGFS_BASE, group_name, CGFS_NAME, t);
+int setup_cgroup(const char *group_name, char *sub_group, unsigned random_int) {
+    sprintf(sub_group, "%s/%s/%s/%u", CGFS_BASE, group_name, CGFS_NAME,
+            random_int);
     int ret = mkdir(sub_group, 0755);
     if (ret) {
         return SCE_CG;
@@ -57,12 +65,16 @@ int setup_cgroup(const char *group_name, char *sub_group, unsigned t) {
     return 0;
 }
 
-int flush(const char *sub_group, const char *name) {
+int write_cgroup(const char *sub_group, const char *name, const char *content) {
     char file[512] = {0};
     sprintf(file, "%s/%s", sub_group, name);
-    int ret = echo("0", file);
+    int ret = echo(content, file);
     if (ret) return SCE_CGCU;
     return 0;
+}
+
+int flush(const char *sub_group, const char *name) {
+    return write_cgroup(sub_group, name, "0");
 }
 
 int add_pid_to_cg(pid_t pid, const char *sub_group) {

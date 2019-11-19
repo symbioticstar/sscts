@@ -18,17 +18,18 @@
 #include "sce.h"
 #include "sscts.h"
 
-const char *argp_program_version = "1.0.0";
+const char *argp_program_version = "1.1.0";
 const char *argp_program_bug_address = "<i@sst.st>";
 static char doc[] = "sscts: Sirius Collection - Timer with Seccomp";
 static char args_doc[] = "[BINARY] [ARGS]...";
 static struct argp_option options[] = {
 
-    {0, 0, 0, 0, "Seccomp Strategy"},
+    {0, 0, 0, 0, "Security Strategy"},
     {"execve-allow", 'x', "SYSTEM_CALL", OPTION_ARG_OPTIONAL,
      "Manually allow execve path (This will ignore all other rules). "
      "If SYSTEM_CALL is not defined, a default rule which can only execve the "
      "first binary will be provided"},
+    {"pids-max", 'p', "MAX", 0, "cgroup.pids.pids_max"},
 
     {0, 0, 0, 0, "Resourse Limit (Hard)"},
     {"time-limit", 't', "SECOND", 0, "TimeLimit, in second"},
@@ -67,6 +68,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 'f':
             arguments->fd = atoi(arg);
             break;
+        case 'p':
+            arguments->pids_max = atoi(arg);
+            break;
         case 'o':
             arguments->stdout = arg;
             break;
@@ -94,7 +98,7 @@ static struct argp argp = {options, parse_opt, args_doc, doc};
 pid_t pid;
 
 int is_root;
-char cg_cpu[1024], cg_memory[1024];
+char cg_cpu[1024], cg_memory[1024], cg_pids[1024];
 
 int main(int argc, char *argv[]) {
     /* Default */
@@ -102,6 +106,7 @@ int main(int argc, char *argv[]) {
     arguments.memory_limit = 0;
     arguments.time_limit = 0;
     arguments.stdout = 0;
+    arguments.pids_max = 0;
     arguments.fd = 1;
     arguments.stderr = 0;
     arguments.gid = -1;
@@ -118,12 +123,14 @@ int main(int argc, char *argv[]) {
     gettimeofday(&start, NULL);
 
     /* cgroup preparation */
-    if (is_root && (access(CGFS_BASE "/cpu/" CGFS_NAME, F_OK) != 0 ||
-                    access(CGFS_BASE "/memory/" CGFS_NAME, F_OK) != 0)) {
-        if (init_cgroup("cpu")) {
+    if (is_root) {
+        if (ensure_cgroup("cpu")) {
             return SCE_CGIC;
         }
-        if (init_cgroup("memory")) {
+        if (ensure_cgroup("memory")) {
+            return SCE_CGIC;
+        }
+        if (ensure_cgroup("pids")) {
             return SCE_CGIC;
         }
     }
@@ -143,6 +150,9 @@ int main(int argc, char *argv[]) {
             return SCE_CGSU;
         }
         if (setup_cgroup("memory", cg_memory, t)) {
+            return SCE_CGSU;
+        }
+        if (setup_cgroup("pids", cg_pids, t)) {
             return SCE_CGSU;
         }
     }
@@ -185,12 +195,22 @@ int main(int argc, char *argv[]) {
             if (add_pid_to_cg(p, cg_memory)) {
                 return SCE_CGAT;
             }
+            if (arguments.pids_max)
+                if (add_pid_to_cg(p, cg_pids)) {
+                    return SCE_CGAT;
+                }
             if (flush(cg_memory, "memory.max_usage_in_bytes")) {
                 return SCE_CGCU;
             }
             if (flush(cg_cpu, "cpuacct.usage")) {
                 return SCE_CGCU;
             }
+            char max_pids[15];
+            sprintf(max_pids, "%d", arguments.pids_max);
+            if (arguments.pids_max)
+                if (write_cgroup(cg_pids, "pids.max", max_pids)) {
+                    return SCE_CGCU;
+                }
         }
 
         /* Set gid. Root required.*/
