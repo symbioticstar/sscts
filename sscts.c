@@ -292,6 +292,7 @@ int main(int argc, char *argv[]) {
             result.cpu_time = result.sys_time + result.user_time;
             cleanup_cg(cg_cpu);
             cleanup_cg(cg_memory);
+            cleanup_cg(cg_pids);
         } else {
             ssc_result_parse_rusage(&result, &rusage);
             result.cg_enabled = 0;
